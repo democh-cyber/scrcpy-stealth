@@ -1,0 +1,23 @@
+node_modules/
+dist/
+out/
+
+# Electron builder cache
+.cache/
+
+# Compiled native helper (checked in as binary only if intentional)
+# stealth-helper.exe
+
+# Config / user data
+*.json.bak
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Logs
+npm-debug.log*

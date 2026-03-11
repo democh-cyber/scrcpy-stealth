@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>scrcpy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Custom Title Bar -->
+  <div class="titlebar" id="titlebar">
+    <div class="titlebar-drag">
+      <span class="titlebar-title">SCRCPY</span>
+      <span class="stealth-badge" id="stealthBadge">STEALTH</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="tb-btn" id="btnMinimize">&#x2013;</button>
+      <button class="tb-btn" id="btnMaximize">&#x25A1;</button>
+      <button class="tb-btn tb-close" id="btnClose">&#x2715;</button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container" id="controlPanel">
+    <!-- scrcpy Path Section -->
+    <div class="section path-section" id="pathSection">
+      <div class="section-header">
+        <h2>scrcpy Path</h2>
+        <button class="btn-icon" id="btnBrowse" title="Browse for scrcpy folder">&#x1F4C2;</button>
+      </div>
+      <div class="path-display" id="pathDisplay">
+        <span class="path-text" id="pathText">Not configured</span>
+      </div>
+    </div>
+
+    <!-- Device Section -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Device</h2>
+        <button class="btn-icon" id="btnRefresh" title="Refresh devices">&#x21BB;</button>
+        <button class="btn-icon" id="btnWireless" title="Wireless connect">&#x1F4F6;</button>
+      </div>
+      <div class="device-list" id="deviceList">
+        <div class="placeholder">Click refresh to scan devices</div>
+      </div>
+    </div>
+
+    <!-- Options Section -->
+    <div class="section">
+      <h2>Options</h2>
+      <div class="options-grid">
+        <div class="option-group">
+          <label for="maxSize">Max Size</label>
+          <select id="maxSize">
+            <option value="">Default</option>
+            <option value="2560">2560</option>
+            <option value="1920">1920</option>
+            <option value="1280">1280</option>
+            <option value="1024" selected>1024</option>
+            <option value="800">800</option>
+            <option value="640">640</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label for="bitRate">Bit Rate</label>
+          <select id="bitRate">
+            <option value="">Default</option>
+            <option value="16M">16M</option>
+            <option value="8M" selected>8M</option>
+            <option value="4M">4M</option>
+            <option value="2M">2M</option>
+            <option value="1M">1M</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label for="maxFps">Max FPS</label>
+          <select id="maxFps">
+            <option value="">Default</option>
+            <option value="60" selected>60</option>
+            <option value="30">30</option>
+            <option value="24">24</option>
+            <option value="15">15</option>
+          </select>
+        </div>
+      </div>
+      <div class="toggles">
+        <label class="toggle">
+          <input type="checkbox" id="turnScreenOff">
+          <span>Turn Screen Off</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="stayAwake" checked>
+          <span>Stay Awake</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="noAudio" checked>
+          <span>No Audio</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="record">
+          <span>Record</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Stealth Section -->
+    <div class="section stealth-section">
+      <div class="stealth-row">
+        <span class="stealth-label">&#x1F6E1; Stealth Mode</span>
+        <label class="switch">
+          <input type="checkbox" id="stealthToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p class="stealth-desc">Content protection prevents screenshots and screen recording from capturing this window.</p>
+      <p class="stealth-hint">Press <kbd>Ctrl+Shift+S</kbd> to show/hide window.<br>Press <kbd>Ctrl+Shift+D</kbd> to toggle mouse pass-through.<br>Press <kbd>Ctrl+Shift+Q</kbd> PANIC — instantly kills everything and hides.<br>Focus Guard auto-enabled — clicking this window won't trigger tab-switch detection.</p>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="btn btn-start" id="btnStart">&#x25B6; Start</button>
+      <button class="btn btn-stop" id="btnStop" disabled>&#x25A0; Stop</button>
+    </div>
+
+    <!-- Status / Log -->
+    <div class="section log-section">
+      <div class="section-header">
+        <h2>Log</h2>
+        <button class="btn-icon" id="btnCopyLog" title="Copy all logs">📋</button>
+      </div>
+      <div class="log" id="logOutput"></div>
+    </div>
+  </div>
+
+  <!-- Mirror View (shown when scrcpy is embedded) -->
+  <div id="mirrorView" class="mirror-view hidden">
+      <div id="mirrorContainer" class="mirror-container">
+      <video id="mirrorVideo" autoplay playsinline></video>
+      <input type="text" id="keyboardInput" class="keyboard-input" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="">
+    </div>
+    <div class="mirror-toolbar">
+      <button class="btn btn-stop-mirror" id="btnStopMirror">&#x25A0;</button>
+      <div class="nav-buttons">
+        <button class="btn-nav" id="btnBack" title="Back">&#x25C0;</button>
+        <button class="btn-nav btn-nav-home" id="btnHome" title="Home">&#x25CB;</button>
+        <button class="btn-nav" id="btnRecent" title="Recents">&#x25A1;</button>
+      </div>
+      <button class="btn btn-toolbar-toggle" id="btnMiniMode" title="Mini mode">&#x1F5D7;</button>
+      <button class="btn btn-passthrough" id="btnPassthrough" title="Toggle mouse pass-through (Ctrl+Shift+D)">&#x1F6E1;</button>
+      <button class="btn btn-toolbar-toggle active" id="btnAlwaysOnTop" title="Always on top">&#x1F4CC;</button>
+      <div class="clipboard-buttons">
+        <button class="btn-nav" id="btnClipPull" title="Phone clipboard → PC">&#x1F4CB;&#x2B05;</button>
+        <button class="btn-nav" id="btnClipPush" title="PC clipboard → Phone">&#x2B95;&#x1F4CB;</button>
+      </div>
+      <div class="opacity-control" title="Window opacity">
+        <span class="opacity-icon">&#x1F441;</span>
+        <input type="range" id="opacitySlider" min="10" max="100" value="100" class="opacity-slider">
+        <span class="opacity-value" id="opacityValue">100%</span>
+      </div>
+      <span class="mirror-status" id="mirrorStatus">Connecting...</span>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
