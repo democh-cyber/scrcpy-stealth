@@ -449,14 +449,22 @@ ipcMain.handle('get-devices', async () => {
       }
       const lines = stdout.trim().split('\n').slice(1);
       const devices = lines
-        .filter((l) => l.includes('device'))
         .map((l) => {
           const parts = l.trim().split(/\s+/);
+          return { parts, line: l };
+        })
+        // Only include lines where the state field is exactly "device" (not offline/unauthorized)
+        .filter(({ parts }) => parts[1] === 'device')
+        // Drop mDNS-advertised serials — they are never directly usable and linger after
+        // wireless debugging is turned off
+        .filter(({ parts }) => !/^adb-[0-9a-f]+-/i.test(parts[0]))
+        .map(({ parts, line }) => {
           const serial = parts[0];
-          const modelMatch = l.match(/model:(\S+)/);
+          const modelMatch = line.match(/model:(\S+)/);
           const model = modelMatch ? modelMatch[1] : serial;
           return { serial, model };
         });
+
       resolve({ devices });
     });
   });
@@ -884,6 +892,7 @@ ipcMain.handle('adb-connect', async (_event, ip) => {
         resolve({ success: false, error: 'No USB device found; provide IP to connect wirelessly' });
         return;
       }
+      // Use port from user input if already present; default to 5555 only for bare IPs
       const target = ip.includes(':') ? ip : `${ip}:5555`;
       execFile(adb, ['connect', target], { timeout: 10000, windowsHide: true }, (err2, stdout2) => {
         if (err2) return resolve({ success: false, error: err2.message });
@@ -894,6 +903,41 @@ ipcMain.handle('adb-connect', async (_event, ip) => {
         } else {
           resolve({ success: false, error: (stdout2 || 'adb connect failed').trim() });
         }
+      });
+    });
+  });
+});
+
+// Auto-connect: use `adb mdns services` to discover real IP:port and connect
+ipcMain.handle('adb-auto-connect', async () => {
+  const adb = getAdbExe();
+  return new Promise((resolve) => {
+    execFile(adb, ['mdns', 'services'], { timeout: 8000, windowsHide: true }, (err, stdout) => {
+      const output = (stdout || '') + (err ? '' : '');
+      const lines = output.split('\n').map(l => l.trim()).filter(Boolean);
+      // Each line: <instance>  _adb-tls-connect._tcp  <ip>:<port>
+      const connectLines = lines.filter(l => l.includes('_adb-tls-connect._tcp'));
+      if (!connectLines.length) {
+        return resolve({ success: false, error: 'No wireless ADB device found via mDNS. Enable Wireless Debugging on your phone.' });
+      }
+      // Parse the first found address
+      const firstLine = connectLines[0];
+      const parts = firstLine.split(/\s+/);
+      // Last token should be IP:port
+      const addrPart = parts[parts.length - 1];
+      if (!addrPart || !addrPart.includes(':')) {
+        return resolve({ success: false, error: 'Could not parse device address from: ' + firstLine });
+      }
+      sendLog('[AUTO] Found mDNS device: ' + addrPart + ', connecting...');
+      execFile(adb, ['connect', addrPart], { timeout: 10000, windowsHide: true }, (cerr, cout) => {
+        if (cerr) return resolve({ success: false, error: cerr.message });
+        const low = (cout || '').toLowerCase();
+        if (low.includes('connected') || low.includes('already connected')) {
+          activeSerial = addrPart;
+          return resolve({ success: true, method: 'wireless', serial: addrPart, output: (cout || '').trim() });
+        }
+        // Connection refused usually means not yet paired
+        return resolve({ success: false, error: (cout || 'adb connect failed').trim(), needsPairing: true });
       });
     });
   });

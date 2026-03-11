@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('scrcc', {
   clipboardPull: () => ipcRenderer.invoke('clipboard-pull'),
   clipboardPush: () => ipcRenderer.invoke('clipboard-push'),
   adbConnect: (ip) => ipcRenderer.invoke('adb-connect', ip),
+  adbAutoConnect: () => ipcRenderer.invoke('adb-auto-connect'),
   toggleMiniMode: () => ipcRenderer.invoke('toggle-mini-mode'),
   setAutoReconnect: (enabled) => ipcRenderer.invoke('set-auto-reconnect', enabled),
 

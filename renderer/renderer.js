@@ -33,9 +33,6 @@ const btnCopyLog = document.getElementById('btnCopyLog');
 let selectedDevice = null;
 let captureStream = null;
 let captureInfo = null;
-// autoAdjust removed from UI; auto-adjust checks disabled
-// FPS monitoring
-// Auto-adjust / FPS monitoring removed
 
 // Gesture tracking
 let gesture = null; // { startX, startY, startTime, lastX, lastY }
@@ -55,27 +52,45 @@ stealthToggle.addEventListener('change', async () => {
 // Refresh devices
 btnRefresh.addEventListener('click', refreshDevices);
 
-// Wireless connect (prefer USB if available)
+// Wireless connect — auto-discover via mDNS, fall back to manual IP entry
 if (btnWireless) {
   btnWireless.addEventListener('click', async () => {
-    const ip = prompt('Enter phone IP (e.g. 192.168.1.2) or leave empty to auto-detect:');
-    appendLog('Attempting connect (USB preferred)...', 'info');
-    const result = await window.scrcc.adbConnect(ip && ip.trim() ? ip.trim() : '');
+    btnWireless.disabled = true;
+    appendLog('Auto-detecting device via mDNS...', 'info');
+    let result = await window.scrcc.adbAutoConnect();
+
+    if (!result || !result.success) {
+      // mDNS failed — prompt for manual IP:port
+      const ip = prompt(
+        (result && result.error ? result.error + '\n\n' : '') +
+        'Enter phone IP:port (e.g. 192.168.0.14:39113 from Developer Options → Wireless debugging):'
+      );
+      if (ip && ip.trim()) {
+        appendLog('Attempting manual connect to ' + ip.trim() + '...', 'info');
+        result = await window.scrcc.adbConnect(ip.trim());
+      } else {
+        appendLog('Connect cancelled.', 'info');
+        btnWireless.disabled = false;
+        return;
+      }
+    }
+
+    btnWireless.disabled = false;
     if (!result) {
       appendLog('adb-connect: no response', 'error');
       return;
     }
     if (result.success) {
       appendLog('Connected via ' + result.method + ' (' + result.serial + ')', 'info');
-      // Refresh device list and select connected device
       await refreshDevices();
       selectedDevice = result.serial;
-      // Highlight matching device if present
       document.querySelectorAll('.device-item').forEach((el) => {
         if (el.querySelector('.device-serial') && el.querySelector('.device-serial').textContent === result.serial) {
           el.classList.add('selected');
         }
       });
+    } else if (result.needsPairing) {
+      appendLog('Device found but not paired. Go to Developer Options → Wireless debugging → Pair device with pairing code, then retry.', 'error');
     } else {
       appendLog('Connect failed: ' + (result.error || 'unknown'), 'error');
     }
@@ -94,6 +109,15 @@ async function refreshDevices() {
 
   if (!result.devices || result.devices.length === 0) {
     deviceList.innerHTML = '<div class="placeholder">No devices found</div>';
+    // Attempt mDNS auto-connect in case a wireless debugging device is advertised
+    // but not yet connected (auto-connect will be a no-op if nothing is found)
+    const ac = await window.scrcc.adbAutoConnect();
+    if (ac && ac.success) {
+      appendLog('Auto-connected: ' + ac.serial, 'info');
+      await refreshDevices();
+    } else if (ac && ac.needsPairing) {
+      appendLog('Device needs pairing. Click 📶 and pair from Developer Options.', 'error');
+    }
     return;
   }
 
@@ -148,7 +172,6 @@ btnStart.addEventListener('click', async () => {
   }
 
   appendLog('scrcpy started (PID: ' + result.pid + ')', 'info');
-  // start options are not retained currently
 });
 
 // Stop scrcpy
@@ -177,10 +200,8 @@ async function startCapture(info) {
     });
     mirrorVideo.srcObject = captureStream;
     mirrorVideo.play();
-      // capture started
     appendLog('Video capture started', 'info');
     mirrorStatus.textContent = 'Connected (stealth capture)';
-    // startFPSMonitor(); // Removed FPS monitoring
   } catch (err) {
     appendLog('Capture error: ' + err.message, 'error');
   }
@@ -193,10 +214,7 @@ function stopCapture() {
   }
   mirrorVideo.srcObject = null;
   captureInfo = null;
-  // stopFPSMonitor(); // Removed FPS monitoring
 }
-
-  // Removed FPS monitoring and auto-adjust functions
 
 // --- Coordinate mapping: video element → Android device screen ---
 function getDeviceCoords(e) {
@@ -498,8 +516,6 @@ async function loadScrcpyPath() {
   }
 }
 
-// Init
-loadScrcpyPath();
 appendLog('SCRCC ready. Stealth mode active.', 'info');
 
 // Copy log button
