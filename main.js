@@ -279,6 +279,9 @@ function createWindow() {
     } catch (_) { /* ignore invalid bounds */ }
   }
 
+  // Always open the window centered on screen regardless of saved bounds
+  try { mainWindow.center(); } catch (_) { /* ignore */ }
+
   mainWindow.setContentProtection(true);
 
   // Anti-detection: remove Electron/Chrome signature from user-agent
