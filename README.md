@@ -66,7 +66,7 @@ An Electron desktop app that runs [scrcpy](https://github.com/Genymobile/scrcpy)
 ### Development
 
 ```bash
-git clone https://github.com/yourname/scrcc
+git clone https://github.com/democh-cyber/scrcpy-stealth.git
 cd scrcc
 npm install
 ```
