@@ -33,6 +33,7 @@ const btnCopyLog = document.getElementById('btnCopyLog');
 let selectedDevice = null;
 let captureStream = null;
 let captureInfo = null;
+let intentionalStop = false;
 
 // Gesture tracking
 let gesture = null; // { startX, startY, startTime, lastX, lastY }
@@ -46,6 +47,9 @@ btnClose.addEventListener('click', () => window.scrcc.windowClose());
 stealthToggle.addEventListener('change', async () => {
   const result = await window.scrcc.toggleStealth(stealthToggle.checked);
   stealthBadge.classList.toggle('hidden', !result.stealth);
+  if (captureStream) {
+    mirrorStatus.textContent = result.stealth ? 'Connected (stealth capture)' : 'Connected';
+  }
   appendLog(result.stealth ? 'Stealth mode ENABLED' : 'Stealth mode DISABLED', 'info');
 });
 
@@ -180,9 +184,18 @@ btnStopMirror.addEventListener('click', stopScrcpy);
 
 async function stopScrcpy() {
   stopCapture();
-  await window.scrcc.stopScrcpy();
+  // Mark as intentional so onStopped doesn't treat this as an unexpected exit
+  intentionalStop = true;
+  // Immediately reset UI so Start is enabled for the user while we stop in background
   switchToControlPanel();
-  appendLog('scrcpy stopped', 'info');
+  try {
+    await window.scrcc.stopScrcpy();
+    appendLog('Stopped — auto-reconnect cancelled', 'info');
+  } catch (e) {
+    appendLog('Error stopping scrcpy: ' + (e && e.message ? e.message : String(e)), 'error');
+  } finally {
+    intentionalStop = false;
+  }
 }
 
 // --- Video capture ---
@@ -201,7 +214,7 @@ async function startCapture(info) {
     mirrorVideo.srcObject = captureStream;
     mirrorVideo.play();
     appendLog('Video capture started', 'info');
-    mirrorStatus.textContent = 'Connected (stealth capture)';
+    mirrorStatus.textContent = stealthToggle.checked ? 'Connected (stealth capture)' : 'Connected';
   } catch (err) {
     appendLog('Capture error: ' + err.message, 'error');
   }
@@ -422,7 +435,7 @@ btnClipPush.addEventListener('click', async () => {
 function switchToMirrorView() {
   controlPanel.classList.add('hidden');
   mirrorView.classList.remove('hidden');
-  // Keyboard input intentionally hidden by default; do not show or focus it here.
+  
 }
 
 function switchToControlPanel() {
@@ -432,6 +445,17 @@ function switchToControlPanel() {
   btnStop.disabled = true;
 }
 
+ 
+const mirrorContainer = document.getElementById('mirrorContainer');
+  
+
+ 
+function isMirrorActive() {
+  return !mirrorView.classList.contains('hidden');
+}
+
+ 
+
 // --- Events ---
 window.scrcc.onLog((msg) => {
   const isError = msg.toLowerCase().includes('error') || msg.toLowerCase().includes('fail');
@@ -440,7 +464,16 @@ window.scrcc.onLog((msg) => {
 
 window.scrcc.onStopped((code) => {
   stopCapture();
-  switchToControlPanel();
+  // If we intentionally stopped from UI, restore controls. Otherwise,
+  // keep Stop enabled for unexpected exits (auto-reconnect scenario).
+  // Treat `null` exit code as a normal stop (device closed the connection)
+  if (intentionalStop || code === 0 || code == null) {
+    switchToControlPanel();
+  } else {
+    // Unexpected non-zero exit: keep Stop enabled so user can cancel reconnect
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+  }
   appendLog('scrcpy process exited (code: ' + code + ')', code === 0 ? 'info' : 'error');
 });
 
@@ -466,6 +499,11 @@ window.scrcc.onPanic(() => {
 // Auto-reconnect event
 window.scrcc.onAutoReconnect(async () => {
   appendLog('[AUTO-RECONNECT] Reconnecting...', 'info');
+  // If the user already hit Stop (control panel visible), suppress auto-reconnect
+  if (btnStop.disabled) {
+    appendLog('[AUTO-RECONNECT] Suppressed (user stopped)', 'info');
+    return;
+  }
   // Re-click start with the same options that were last used
   btnStart.click();
 });

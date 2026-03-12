@@ -41,6 +41,7 @@ let windowOpacity = 1.0;
 let focusGuardActive = false;
 let autoReconnect = true;
 let lastScrcpyOptions = null;
+let reconnectTimer = null;
 let miniMode = false;
 let normalBounds = null;
 
@@ -376,9 +377,14 @@ async function togglePassthrough() {
 // --- scrcpy process ---
 function killScrcpy() {
   lastScrcpyOptions = null; // prevent auto-reconnect on intentional stop
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   if (scrcpyHwnd) {
     scrcpyHwnd = null;
   }
+  
   if (scrcpyProcess) {
     try { scrcpyProcess.kill('SIGTERM'); } catch (_) { /* ignore */ }
     // We do not immediately null the process here; allow graceful shutdown handlers to run.
@@ -493,6 +499,8 @@ ipcMain.handle('start-scrcpy', async (_event, options) => {
     const recordPath = path.join(app.getPath('videos') || app.getPath('home'), `scrcc-${timestamp}.mp4`);
     args.push('--record', recordPath);
   }
+
+  
 
   // Disguise scrcpy: use a benign window title and borderless to avoid Android icon
   args.push('--window-title=Desktop Window Manager');
@@ -661,7 +669,8 @@ ipcMain.handle('start-scrcpy', async (_event, options) => {
         // Auto-reconnect if enabled and not intentionally stopped
         if (autoReconnect && lastScrcpyOptions && code !== 0) {
           sendLog('[AUTO-RECONNECT] scrcpy exited unexpectedly, reconnecting in 3s...');
-          setTimeout(() => {
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
             if (autoReconnect && lastScrcpyOptions && !scrcpyProcess) {
               ipcMain.emit('auto-reconnect');
             }
@@ -797,6 +806,10 @@ ipcMain.handle('toggle-focusguard', async () => {
 ipcMain.handle('stop-scrcpy', async () => {
   // Mark as intentional stop to avoid auto-reconnect
   lastScrcpyOptions = null;
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
   await stopScrcpyGraceful();
   return { success: true };
 });
