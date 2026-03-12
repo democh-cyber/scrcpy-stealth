@@ -4,6 +4,19 @@ An Electron desktop app that runs [scrcpy](https://github.com/Genymobile/scrcpy)
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/ac40558f-aab0-49b3-8271-82750336f92b" width="45%" />
+  <img src="https://github.com/user-attachments/assets/bb07088f-7f9d-4c91-a456-83ad44d823ec" width="45%" />
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3181bfde-f060-46c7-8b18-d6ce2f4eec1b" width="45%" />
+  <img src="https://github.com/user-attachments/assets/f10f5dfe-c29d-45a5-8d34-1448ce4f1930" width="45%" />
+</p>
+
+
 ## Features
 
 ### Stealth & Privacy
@@ -53,7 +66,7 @@ An Electron desktop app that runs [scrcpy](https://github.com/Genymobile/scrcpy)
 ### Development
 
 ```bash
-git clone https://github.com/yourname/scrcc
+git clone https://github.com/democh-cyber/scrcpy-stealth.git
 cd scrcc
 npm install
 ```
